@@ -1,0 +1,7 @@
+streamlit
+keras>=3.0.0
+torch
+opencv-python-headless
+numpy
+pandas
+pillow
