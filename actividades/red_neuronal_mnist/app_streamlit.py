@@ -9,7 +9,6 @@ import keras
 import numpy as np
 import pandas as pd
 import streamlit as st
-from PIL import Image
 
 MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mnist_model.keras")
 
@@ -25,22 +24,19 @@ def load_keras_model():
         raise FileNotFoundError(f"Model file not found at: {MODEL_PATH}")
     return keras.saving.load_model(MODEL_PATH)
 
-def preprocess_opencv_image(cv_img):
+def preprocess_opencv_single_digit(cv_img):
     """
-    OpenCV segmentation and centering for one or multiple handwritten digits.
-    Matches the exact notebook/desktop pipeline:
+    OpenCV preprocessing for a SINGLE handwritten digit:
     1. Background detection and Otsu / adaptive background subtraction.
-    2. Connected components segmentation.
-    3. Left-to-right sorting.
-    4. Grouping of nearby components of the same digit.
-    5. Centering by Center of Mass (moments) on a 28x28 canvas.
+    2. Connected components analysis to isolate the main digit and merge its strokes.
+    3. Normalization and centering by Center of Mass (moments) on a 28x28 canvas.
     """
     if len(cv_img.shape) == 3:
         gray = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
     else:
         gray = cv_img
 
-    # 1. Background detection
+    # 1. Background detection and binarization
     border_pixels = np.concatenate([gray[0, :], gray[-1, :], gray[:, 0], gray[:, -1]])
     bg_median = float(np.median(border_pixels))
     max_val = float(np.max(gray))
@@ -60,87 +56,77 @@ def preprocess_opencv_image(cv_img):
         T = p_dark + 0.35 * (p_paper - p_dark)
         bin_img = (norm < T).astype(np.uint8) * 255
 
-    # 2. Connected components
+    # 2. Connected components to find the single main digit
     num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(bin_img)
     if num_labels <= 1:
-        return [], bin_img
+        return None, bin_img
 
     total_pixels = bin_img.shape[0] * bin_img.shape[1]
     min_area = max(40, int(total_pixels * 0.0003))
 
-    boxes = []
-    for i in range(1, num_labels):
-        x, y, w, h, area = stats[i]
-        if area >= min_area and h >= 12 and w >= 4:
-            boxes.append([x, y, w, h, area])
+    valid_indices = [
+        i for i in range(1, num_labels)
+        if stats[i, cv2.CC_STAT_AREA] >= min_area
+    ]
 
-    if not boxes:
-        largest = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
-        boxes = [stats[largest][:5].tolist()]
+    if not valid_indices:
+        valid_indices = [1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))]
 
-    # 3. Sort left-to-right
-    boxes = sorted(boxes, key=lambda b: b[0])
+    # Find the largest stroke of the digit
+    main_idx = max(valid_indices, key=lambda i: stats[i, cv2.CC_STAT_AREA])
+    mx, my, mw, mh, _ = stats[main_idx]
 
-    # 4. Group adjacent strokes
-    merged_boxes = []
-    for b in boxes:
-        if not merged_boxes:
-            merged_boxes.append(b)
-        else:
-            prev = merged_boxes[-1]
-            prev_x2 = prev[0] + prev[2]
-            prev_y2 = prev[1] + prev[3]
-            curr_x2 = b[0] + b[2]
-            curr_y2 = b[1] + b[3]
+    # Merge nearby disconnected strokes belonging to the same digit (e.g. crossbars in 4, 5, 7)
+    x1, y1, x2, y2 = mx, my, mx + mw, my + mh
+    pad = max(mw, mh) * 0.4
+    for i in valid_indices:
+        if i == main_idx:
+            continue
+        ix, iy, iw, ih, _ = stats[i]
+        if not (ix > x2 + pad or ix + iw < x1 - pad or iy > y2 + pad or iy + ih < y1 - pad):
+            x1 = min(x1, ix)
+            y1 = min(y1, iy)
+            x2 = max(x2, ix + iw)
+            y2 = max(y2, iy + ih)
 
-            overlap_x = min(prev_x2, curr_x2) - max(prev[0], b[0])
-            gap_x = b[0] - prev_x2
-            min_w = min(prev[2], b[2])
+    w = x2 - x1
+    h = y2 - y1
 
-            if overlap_x > 0 or gap_x < min_w * 0.15:
-                new_x = min(prev[0], b[0])
-                new_y = min(prev[1], b[1])
-                new_w = max(prev_x2, curr_x2) - new_x
-                new_h = max(prev_y2, curr_y2) - new_y
-                merged_boxes[-1] = [new_x, new_y, new_w, new_h, prev[4] + b[4]]
-            else:
-                merged_boxes.append(b)
+    # 3. Crop and resize maintaining aspect ratio into 20x20
+    digit_crop = bin_img[y1:y2, x1:x2]
+    dh, dw = digit_crop.shape
+    if dh == 0 or dw == 0:
+        return None, bin_img
 
-    # 5. Normalize and center each digit by Center of Mass
-    digit_items = []
-    for x, y, w, h, _ in merged_boxes:
-        digit_crop = bin_img[y:y+h, x:x+w]
-        dh, dw = digit_crop.shape
-        factor = 20.0 / max(dh, dw)
-        new_w = max(1, int(round(dw * factor)))
-        new_h = max(1, int(round(dh * factor)))
-        resized = cv2.resize(digit_crop, (new_w, new_h), interpolation=cv2.INTER_AREA)
-        dilated = cv2.dilate(resized, np.ones((2, 2), np.uint8), iterations=1)
+    factor = 20.0 / max(dh, dw)
+    new_w = max(1, int(round(dw * factor)))
+    new_h = max(1, int(round(dh * factor)))
+    resized = cv2.resize(digit_crop, (new_w, new_h), interpolation=cv2.INTER_AREA)
+    dilated = cv2.dilate(resized, np.ones((2, 2), np.uint8), iterations=1)
 
-        canvas = np.zeros((28, 28), dtype=np.uint8)
-        canvas[(28-new_h)//2:(28-new_h)//2+new_h, (28-new_w)//2:(28-new_w)//2+new_w] = dilated
+    # 4. Center by Center of Mass on a 28x28 canvas
+    canvas = np.zeros((28, 28), dtype=np.uint8)
+    canvas[(28 - new_h) // 2:(28 - new_h) // 2 + new_h, (28 - new_w) // 2:(28 - new_w) // 2 + new_w] = dilated
 
-        M = cv2.moments(canvas)
-        if M["m00"] > 0:
-            cx = M["m10"] / M["m00"]
-            cy = M["m01"] / M["m00"]
-            shift_x = 14.0 - cx
-            shift_y = 14.0 - cy
-            T_mat = np.float32([[1, 0, shift_x], [0, 1, shift_y]])
-            canvas = cv2.warpAffine(canvas, T_mat, (28, 28), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+    M = cv2.moments(canvas)
+    if M["m00"] > 0:
+        cx = M["m10"] / M["m00"]
+        cy = M["m01"] / M["m00"]
+        shift_x = 14.0 - cx
+        shift_y = 14.0 - cy
+        T_mat = np.float32([[1, 0, shift_x], [0, 1, shift_y]])
+        canvas = cv2.warpAffine(canvas, T_mat, (28, 28), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
 
-        input_vector = canvas.astype(np.float32).reshape(1, 784)
-        digit_items.append({
-            "box": (int(x), int(y), int(w), int(h)),
-            "canvas": canvas,
-            "vector": input_vector
-        })
-
-    return digit_items, bin_img
+    input_vector = canvas.astype(np.float32).reshape(1, 784)
+    return {
+        "box": (int(x1), int(y1), int(w), int(h)),
+        "canvas": canvas,
+        "vector": input_vector
+    }, bin_img
 
 # UI Header
-st.title("🔢 Clasificador de Dígitos MNIST")
-st.markdown("Reconocimiento de dígitos manuscritos en fotos de cuaderno o cámara mediante **OpenCV** y **Red Neuronal (Keras/PyTorch)**.")
+st.title("🔢 Clasificador de Dígito MNIST")
+st.markdown("Reconocimiento de **un único dígito** manuscrito mediante **OpenCV** y **Red Neuronal (Keras/PyTorch)**.")
 
 # Load model
 try:
@@ -171,72 +157,55 @@ if uploaded_file is not None:
         st.error("No se pudo decodificar la imagen.")
         st.stop()
 
-    with st.spinner("Procesando imagen con OpenCV y ejecutando inferencia..."):
-        digit_items, bin_img = preprocess_opencv_image(cv_img)
+    with st.spinner("Procesando dígito con OpenCV y ejecutando inferencia..."):
+        digit_item, bin_img = preprocess_opencv_single_digit(cv_img)
 
-    if not digit_items:
-        st.warning("No se detectaron dígitos claros en la imagen. Probá con mayor contraste o mejor iluminación.")
+    if digit_item is None:
+        st.warning("No se detectó un dígito claro en la imagen. Probá con mayor contraste o mejor iluminación.")
     else:
-        # Run inference for all digits
+        # Run inference for the single digit
+        pred_probs = model.predict(digit_item["vector"], verbose=0)[0]
+        pred_digit = int(np.argmax(pred_probs))
+        conf = float(pred_probs[pred_digit]) * 100
+
+        # Annotate image
         annotated_img = cv_img.copy()
-        predictions = []
-
-        for item in digit_items:
-            pred_probs = model.predict(item["vector"], verbose=0)[0]
-            pred_digit = int(np.argmax(pred_probs))
-            conf = float(pred_probs[pred_digit]) * 100
-            item["digit"] = pred_digit
-            item["conf"] = conf
-            item["probs"] = pred_probs
-            predictions.append((pred_digit, conf))
-
-            # Draw green bounding box and text
-            x, y, w, h = item["box"]
-            cv2.rectangle(annotated_img, (x, y), (x + w, y + h), (0, 220, 0), 2)
-            cv2.putText(
-                annotated_img,
-                f"{pred_digit} ({conf:.0f}%)",
-                (x, max(20, y - 8)),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.7,
-                (0, 220, 0),
-                2
-            )
-
+        x, y, w, h = digit_item["box"]
+        cv2.rectangle(annotated_img, (x, y), (x + w, y + h), (0, 220, 0), 3)
+        cv2.putText(
+            annotated_img,
+            f"{pred_digit} ({conf:.1f}%)",
+            (x, max(25, y - 10)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.9,
+            (0, 220, 0),
+            2
+        )
         annotated_rgb = cv2.cvtColor(annotated_img, cv2.COLOR_BGR2RGB)
 
-        # Overview metric
-        seq_text = " ".join([str(p[0]) for p in predictions])
-        avg_conf = np.mean([p[1] for p in predictions])
-
-        col_m1, col_m2 = st.columns(2)
-        col_m1.metric("Secuencia Detectada", seq_text)
-        col_m2.metric("Confianza Promedio", f"{avg_conf:.1f}%")
+        # Main result metric
+        st.metric(
+            label="Dígito Detectado",
+            value=f"{pred_digit}",
+            delta=f"{conf:.1f}% certeza"
+        )
 
         # Side by side visualizer
         col1, col2 = st.columns(2)
         with col1:
-            st.subheader("1. Detección en Imagen")
+            st.subheader("1. Imagen Original con Detección")
             st.image(annotated_rgb, use_container_width=True)
 
         with col2:
-            st.subheader("2. Visión 28x28 (Keras)")
-            if len(digit_items) == 1:
-                st.image(digit_items[0]["canvas"], width=200, caption=f"Dígito: {digit_items[0]['digit']}")
-            else:
-                sub_cols = st.columns(min(len(digit_items), 5))
-                for idx, item in enumerate(digit_items):
-                    with sub_cols[idx % 5]:
-                        st.image(item["canvas"], width=90, caption=f"#{idx+1}: {item['digit']}")
+            st.subheader("2. Visión Normalizada (28x28 Keras)")
+            st.image(digit_item["canvas"], width=220, caption=f"Entrada a la red: dígito {pred_digit}")
 
-        # Probability breakdown per digit
-        st.subheader("Distribución de Probabilidades")
-        for idx, item in enumerate(digit_items):
-            with st.expander(f"Dígito #{idx+1} - Predicción: {item['digit']} ({item['conf']:.1f}%)", expanded=(len(digit_items) == 1)):
-                df_probs = pd.DataFrame({
-                    "Dígito": [str(d) for d in range(10)],
-                    "Probabilidad (%)": item["probs"] * 100
-                })
-                st.bar_chart(df_probs.set_index("Dígito"))
+        # Probability distribution bar chart
+        st.subheader("Distribución de Probabilidades (0 al 9)")
+        df_probs = pd.DataFrame({
+            "Dígito": [str(d) for d in range(10)],
+            "Probabilidad (%)": pred_probs * 100
+        })
+        st.bar_chart(df_probs.set_index("Dígito"))
 else:
-    st.info("Subí una foto de cuaderno o tomá una captura con tu cámara desde el panel lateral para clasificarla.")
+    st.info("Subí una foto de un único dígito en tu cuaderno o capturalo con la cámara.")
