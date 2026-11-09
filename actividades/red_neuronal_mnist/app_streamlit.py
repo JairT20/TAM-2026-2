@@ -127,6 +127,7 @@ def preprocess_opencv_single_digit(cv_img):
 # UI Header
 st.title("🔢 Clasificador de Dígito MNIST")
 st.markdown("Reconocimiento de **un único dígito** manuscrito mediante **OpenCV** y **Red Neuronal (Keras/PyTorch)**.")
+st.caption("Desarrollado en pareja por **Jair Telpiz** y **Nathalia Mora** | Teoría de Aprendizaje de Máquinas (TAM)")
 
 # Load model
 try:
@@ -138,6 +139,11 @@ except Exception as e:
 # Input mode selection
 st.sidebar.header("Opciones de Entrada")
 input_mode = st.sidebar.radio("Fuente de Imagen:", ["Subir Foto de Cuaderno", "Tomar Foto con Cámara"])
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("**Integrantes:**")
+st.sidebar.markdown("• **Jair Telpiz**  \n• **Nathalia Mora**")
+st.sidebar.caption("Teoría de Aprendizaje de Máquinas (TAM)")
 
 uploaded_file = None
 if input_mode == "Subir Foto de Cuaderno":

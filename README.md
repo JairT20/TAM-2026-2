@@ -6,6 +6,15 @@ Repositorio de entregas, evaluaciones y proyectos prácticos de la materia Teor�
 
 ---
 
+## 👥 Integrantes / Autores
+
+- **Jair Telpiz**
+- **Nathalia Mora**
+
+*Actividad práctica de Red Neuronal MNIST y desarrollo de la aplicación web en Streamlit realizada en pareja.*
+
+---
+
 ## 🌐 Demo en Vivo (Streamlit Cloud)
 
 Podés probar el clasificador de dígitos manuscritos directamente en tu navegador o celular sin instalar nada:
