@@ -27,6 +27,9 @@ Thumbs.db
 parcial_2_anterior semestre/
 parte2/
 
+# Excluir actividades en progreso / no públicas
+actividades/clasificador_basura/
+
 # Archivos pesados de datasets (descargar por separado)
 *.gz
 data/*.gz
