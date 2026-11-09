@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador Interactivo: Mean Embedding en RKHS (TAM 2026-2)</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-card: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-point1: #38bdf8;   /* Celeste */
+            --accent-point2: #f59e0b;   /* Ámbar */
+            --accent-point3: #ec4899;   /* Rosa */
+            --accent-mean: #10b981;     /* Verde esmeralda (Mean Embedding) */
+            --border: #334155;
+            --font-mono: 'Fira Code', 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1180px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        header {
+            text-align: center;
+        }
+
+        .badge-tam {
+            display: inline-block;
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            padding: 3px 12px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        h1 {
+            font-size: 1.7rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            letter-spacing: -0.5px;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-top: 4px;
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 950px) {
+            .grid-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        }
+
+        .controls-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .anim-status {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 6px;
+            background: #334155;
+            color: #cbd5e1;
+            font-weight: 500;
+        }
+
+        .btn-play {
+            width: 100%;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            transition: all 0.2s ease;
+            margin-bottom: 16px;
+        }
+
+        .btn-play:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.45);
+        }
+
+        .control-group {
+            margin-bottom: 16px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .control-val {
+            font-family: var(--font-mono);
+            color: #38bdf8;
+            font-weight: 600;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #334155;
+            outline: none;
+            -webkit-appearance: none;
+            accent-color: #38bdf8;
+            cursor: pointer;
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 40px;
+            height: 20px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider-switch {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background-color: #334155;
+            border-radius: 20px;
+            transition: 0.2s;
+        }
+
+        .slider-switch:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+
+        input:checked + .slider-switch {
+            background-color: #10b981;
+        }
+
+        input:checked + .slider-switch:before {
+            transform: translateX(20px);
+        }
+
+        .explanation-box {
+            background: #0f172a;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: #cbd5e1;
+            margin-top: 14px;
+        }
+
+        .formula-tag {
+            font-family: var(--font-mono);
+            background: #1e293b;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #38bdf8;
+            font-size: 0.8rem;
+        }
+
+        .canvas-card {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            position: relative;
+        }
+
+        .canvas-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            font-size: 0.82rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-color {
+            width: 14px;
+            height: 4px;
+            border-radius: 2px;
+        }
+
+        canvas {
+            width: 100%;
+            height: 440px;
+            background: #0b1120;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            cursor: crosshair;
+        }
+
+        .canvas-hint {
+            font-size: 0.78rem;
+            color: #64748b;
+            text-align: center;
+            margin-top: -6px;
+        }
+
+        .math-steps-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 14px;
+        }
+
+        .step-pill {
+            background: #0f172a;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .step-num {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: #38bdf8;
+            letter-spacing: 0.5px;
+        }
+
+        .step-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #f8fafc;
+        }
+
+        .step-desc {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <span class="badge-tam">Teoría de Aprendizaje de Máquina • Parcial 1 • Punto 2.1</span>
+        <h1>Visualizador Interactivo de Mean Embedding ($\mu_k$)</h1>
+        <p class="subtitle">Observá cómo los datos discretos se convierten en campanas en $\mathcal{H}_k$ y se promedian en una curva única continua.</p>
+    </header>
+
+    <div class="grid-layout">
+        <!-- Panel de Controles -->
+        <div class="card">
+            <div class="controls-title">
+                <span>Controles y Animación</span>
+                <span id="animStateBadge" class="anim-status">Paso 3: Promedio</span>
+            </div>
+
+            <button id="btnPlay" class="btn-play">
+                <span id="playIcon">▶</span>
+                <span id="playText">Reproducir Animación Paso a Paso</span>
+            </button>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Ancho del Kernel ($\sigma$)</span>
+                    <span id="sigmaVal" class="control-val">1.20</span>
+                </div>
+                <input type="range" id="sliderSigma" min="0.4" max="3.0" step="0.05" value="1.2">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Progreso del Morphing (Fusión)</span>
+                    <span id="morphVal" class="control-val">100%</span>
+                </div>
+                <input type="range" id="sliderMorph" min="0" max="100" step="1" value="100">
+            </div>
+
+            <div class="toggle-row">
+                <span>Mostrar Campanas Individuales $k(x_i, \cdot)$</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="checkShowIndividual" checked>
+                    <span class="slider-switch"></span>
+                </label>
+            </div>
+
+            <div class="toggle-row">
+                <span>Mostrar Mean Embedding $\mu_k(\cdot)$</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="checkShowMean" checked>
+                    <span class="slider-switch"></span>
+                </label>
+            </div>
+
+            <!-- Control de la Sonda Vertical (Láser) -->
+            <div class="control-group" style="background: rgba(192, 132, 252, 0.1); border: 1px solid rgba(192, 132, 252, 0.35); border-radius: 8px; padding: 12px; margin-top: 14px;">
+                <div class="control-label" style="color: #c084fc; font-weight: 700;">
+                    <span>🎯 Sonda Vertical de Alturas ($x'$)</span>
+                    <span id="probeXVal" class="control-val" style="color: #c084fc; font-size: 0.95rem;">1.50</span>
+                </div>
+                <input type="range" id="sliderProbeX" min="-1.0" max="8.0" step="0.05" value="1.50" style="accent-color: #c084fc;">
+                <div style="font-size: 0.76rem; color: #94a3b8; margin-top: 5px;">
+                    Mové la sonda (o pasá el mouse por el gráfico) para medir las <strong>alturas verticales</strong> en esa posición.
+                </div>
+            </div>
+
+            <!-- Desglose de Alturas en Vivo -->
+            <div class="explanation-box" id="probeMathBox" style="border-left: 3px solid #c084fc; margin-top: 10px;">
+                <strong style="color: #c084fc;">📐 Lectura en Vivo en $x' = $<span id="mathProbeX">1.50</span>:</strong>
+                <div style="margin-top:6px; font-family:var(--font-mono); font-size:0.78rem; display:flex; flex-direction:column; gap:4px;">
+                    <div><span style="color:#38bdf8;">■ Campana 1:</span> $y_1 = k(x_1, x') =$ <strong id="valY1" style="color:#38bdf8;">0.88</strong></div>
+                    <div><span style="color:#f59e0b;">■ Campana 2:</span> $y_2 = k(x_2, x') =$ <strong id="valY2" style="color:#f59e0b;">0.88</strong></div>
+                    <div><span style="color:#ec4899;">■ Campana 3:</span> $y_3 = k(x_3, x') =$ <strong id="valY3" style="color:#ec4899;">0.00</strong></div>
+                    <div style="border-top:1px dashed #475569; padding-top:5px; margin-top:2px;">
+                        <span style="color:#10b981; font-weight:700;">Promedio de Alturas:</span><br>
+                        $\mu_k(x') = \frac{y_1 + y_2 + y_3}{3} = \frac{\text{<span id="valSum">1.76</span>}}{3} =$ <strong id="valMean" style="font-size:0.95rem; color:#10b981;">0.59</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="explanation-box" id="stepExplanation" style="margin-top: 10px;">
+                <strong>¿Qué estás viendo?</strong><br>
+                Cada dato <span class="formula-tag">x_i</span> genera una función Gaussiana completa <span class="formula-tag">k(x_i, \cdot)</span> en $\mathcal{H}_k$. El <strong>Mean Embedding</strong> es el promedio vertical exacto:
+                <div style="margin-top:6px; font-family:var(--font-mono); color:#10b981; font-weight:600; font-size:0.82rem;">
+                    μ_k(x') = (1/3) ∑ k(x_i, x')
+                </div>
+            </div>
+        </div>
+
+        <!-- Canvas Principal -->
+        <div class="card canvas-card">
+            <div class="canvas-header">
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background:#38bdf8;"></div>
+                        <span>Dato 1 ($x_1 = 1.0$)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background:#f59e0b;"></div>
+                        <span>Dato 2 ($x_2 = 2.0$)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background:#ec4899;"></div>
+                        <span>Dato 3 ($x_3 = 6.0$)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background:#10b981; height:6px;"></div>
+                        <strong style="color:#10b981;">Mean Embedding $\mu_k(\cdot)$</strong>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background:#c084fc; width:10px; height:10px; border-radius:50%;"></div>
+                        <span style="color:#c084fc; font-weight:600;">Sonda Vertical ($x'$)</span>
+                    </div>
+                </div>
+            </div>
+
+            <canvas id="plotCanvas"></canvas>
+            <div class="canvas-hint">💡 Tip interactivo: Pasá el mouse sobre cualquier parte del gráfico para mover la sonda vertical de alturas en tiempo real.</div>
+        </div>
+    </div>
+
+    <!-- Comparativa Conceptual Horizontal vs Vertical -->
+    <div class="card" style="border-left: 4px solid #38bdf8; background: #0f172a; padding: 16px 20px;">
+        <h3 style="color: #38bdf8; font-size: 1.05rem; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+            <span>🔍 ¿Promedio Horizontal vs. Promedio Vertical? ¿Por qué se promedian ALTURAS?</span>
+        </h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 0.86rem; line-height: 1.5; color: #cbd5e1;">
+            <div style="background: #1e293b; padding: 12px; border-radius: 8px; border: 1px solid #334155;">
+                <strong style="color: #f59e0b; font-size: 0.9rem;">1. Promedio HORIZONTAL (La media de toda la vida):</strong><br>
+                Te movés solo a lo largo del eje $X$:
+                $$\bar{x} = \frac{1 + 2 + 6}{3} = 3.0$$
+                <strong>El problema:</strong> Te devuelve un único número sobre la recta. Pierde toda la geometría de la distribución (no sabe si los datos estaban agrupados o dispersos).
+            </div>
+            <div style="background: #1e293b; padding: 12px; border-radius: 8px; border: 1px solid #334155;">
+                <strong style="color: #10b981; font-size: 0.9rem;">2. Promedio VERTICAL (El Kernel Mean Embedding $\mu_k$):</strong><br>
+                Te parás en cualquier posición horizontal $x'$ del suelo y disparás una línea vertical hacia arriba. Sumás las <strong>alturas</strong> que tienen las 3 campanas en ese punto y dividís por 3:
+                $$\mu_k(x') = \frac{y_1 + y_2 + y_3}{3}$$
+                <strong>El resultado:</strong> Al repetir esto en cada punto, ¡construís una <strong>curva continua entera</strong> que preserva toda la forma de los datos!
+            </div>
+        </div>
+    </div>
+
+    <!-- Pasos Didácticos del Parcial -->
+    <div class="math-steps-card">
+        <div class="step-pill">
+            <span class="step-num">Paso 1: Datos</span>
+            <div class="step-title">Muestras $x_i \in \mathcal{X}$</div>
+            <div class="step-desc">Tus datos discretos en el espacio original. En este ejemplo clásico: $x_1=1$, $x_2=2$, $x_3=6$.</div>
+        </div>
+        <div class="step-pill">
+            <span class="step-num">Paso 2: Mapeo Canónico</span>
+            <div class="step-title">Campanas $k(x_i, \cdot) \in \mathcal{H}_k$</div>
+            <div class="step-desc">Cada punto se convierte en una función (una campana centrada en él). El punto libre $(\cdot)$ espera cualquier posición $x'$.</div>
+        </div>
+        <div class="step-pill">
+            <span class="step-num">Paso 3: Esperanza</span>
+            <div class="step-title">Centro de Masa $\mu_k(\cdot)$</div>
+            <div class="step-desc">Se calcula el promedio de las funciones. La curva verde resultante es un único elemento de $\mathcal{H}_k$ que resume toda la distribución.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('plotCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const sliderSigma = document.getElementById('sliderSigma');
+    const sigmaVal = document.getElementById('sigmaVal');
+    const sliderMorph = document.getElementById('sliderMorph');
+    const morphVal = document.getElementById('morphVal');
+    const checkShowIndividual = document.getElementById('checkShowIndividual');
+    const checkShowMean = document.getElementById('checkShowMean');
+    const btnPlay = document.getElementById('btnPlay');
+    const playIcon = document.getElementById('playIcon');
+    const playText = document.getElementById('playText');
+    const animStateBadge = document.getElementById('animStateBadge');
+    const stepExplanation = document.getElementById('stepExplanation');
+
+    // Elementos de la Sonda Vertical
+    const sliderProbeX = document.getElementById('sliderProbeX');
+    const probeXVal = document.getElementById('probeXVal');
+    const mathProbeX = document.getElementById('mathProbeX');
+    const valY1 = document.getElementById('valY1');
+    const valY2 = document.getElementById('valY2');
+    const valY3 = document.getElementById('valY3');
+    const valSum = document.getElementById('valSum');
+    const valMean = document.getElementById('valMean');
+
+    // Datos iniciales
+    let points = [
+        { x: 1.0, color: '#38bdf8', label: 'x₁ = 1.0' },
+        { x: 2.0, color: '#f59e0b', label: 'x₂ = 2.0' },
+        { x: 6.0, color: '#ec4899', label: 'x₃ = 6.0' }
+    ];
+
+    let draggedPoint = null;
+    let isPlaying = false;
+    let animProgress = 1.0; // 0.0 a 1.0
+    let animStep = 3;       // 1: Puntos, 2: Campanas subiendo, 3: Promediado
+    let animFrameId = null;
+
+    // Escala del gráfico
+    const xMin = -2.0;
+    const xMax = 9.0;
+    const yMin = -0.15;
+    const yMax = 1.25;
+
+    function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = rect.height * window.devicePixelRatio;
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+
+    function toScreenX(x) {
+        const w = canvas.getBoundingClientRect().width;
+        return ((x - xMin) / (xMax - xMin)) * w;
+    }
+
+    function toScreenY(y) {
+        const h = canvas.getBoundingClientRect().height;
+        return h - ((y - yMin) / (yMax - yMin)) * h;
+    }
+
+    function toMathX(sx) {
+        const w = canvas.getBoundingClientRect().width;
+        return xMin + (sx / w) * (xMax - xMin);
+    }
+
+    function rbf(x, c, sigma) {
+        const d = x - c;
+        return Math.exp(-(d * d) / (2 * sigma * sigma));
+    }
+
+    function draw() {
+        const w = canvas.getBoundingClientRect().width;
+        const h = canvas.getBoundingClientRect().height;
+        ctx.clearRect(0, 0, w, h);
+
+        const sigma = parseFloat(sliderSigma.value);
+        sigmaVal.textContent = sigma.toFixed(2);
+        const morph = parseFloat(sliderMorph.value) / 100.0;
+        morphVal.textContent = Math.round(morph * 100) + '%';
+
+        // 1. Eje horizontal y grilla
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 1;
+
+        for (let x = Math.ceil(xMin); x <= Math.floor(xMax); x++) {
+            const sx = toScreenX(x);
+            ctx.beginPath();
+            ctx.moveTo(sx, 0);
+            ctx.lineTo(sx, h);
+            ctx.stroke();
+
+            // Etiquetas numéricas
+            ctx.fillStyle = '#64748b';
+            ctx.font = '11px monospace';
+            ctx.fillText(x.toString(), sx - 4, toScreenY(0) + 16);
+        }
+
+        // Eje cero principal
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, toScreenY(0));
+        ctx.lineTo(w, toScreenY(0));
+        ctx.stroke();
+
+        const numSteps = 400;
+        const dx = (xMax - xMin) / numSteps;
+
+        // 2. Dibujar campanas individuales k(x_i, \cdot)
+        if (checkShowIndividual.checked) {
+            points.forEach((pt) => {
+                ctx.beginPath();
+                ctx.strokeStyle = pt.color;
+                ctx.lineWidth = 2.0;
+
+                // Opacidad según el morphing (se van atenuando cuando emerge el promedio completo)
+                const alpha = Math.max(0.25, 1.0 - 0.65 * morph);
+                ctx.strokeStyle = hexToRgba(pt.color, alpha);
+
+                let first = true;
+                for (let i = 0; i <= numSteps; i++) {
+                    const xCoord = xMin + i * dx;
+                    // Escalar altura durante animación si estamos en fase de subida
+                    const bellHeight = (animStep === 1) ? 0 : rbf(xCoord, pt.x, sigma);
+                    const sx = toScreenX(xCoord);
+                    const sy = toScreenY(bellHeight);
+
+                    if (first) {
+                        ctx.moveTo(sx, sy);
+                        first = false;
+                    } else {
+                        ctx.lineTo(sx, sy);
+                    }
+                }
+                ctx.stroke();
+
+                // Área sombreada suave
+                ctx.lineTo(toScreenX(xMax), toScreenY(0));
+                ctx.lineTo(toScreenX(xMin), toScreenY(0));
+                ctx.closePath();
+                ctx.fillStyle = hexToRgba(pt.color, alpha * 0.08);
+                ctx.fill();
+            });
+        }
+
+        // 3. Dibujar el Mean Embedding \mu_k(\cdot)
+        if (checkShowMean.checked && animStep >= 2) {
+            ctx.beginPath();
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 3.5;
+
+            let first = true;
+            for (let i = 0; i <= numSteps; i++) {
+                const xCoord = xMin + i * dx;
+                let meanY = 0;
+                points.forEach(pt => {
+                    meanY += rbf(xCoord, pt.x, sigma);
+                });
+                meanY /= points.length;
+
+                // Interpolación suave del morphing
+                const displayedY = meanY * morph;
+
+                const sx = toScreenX(xCoord);
+                const sy = toScreenY(displayedY);
+
+                if (first) {
+                    ctx.moveTo(sx, sy);
+                    first = false;
+                } else {
+                    ctx.lineTo(sx, sy);
+                }
+            }
+            ctx.stroke();
+
+            // Área verde esmeralda sombreada bajo \mu_k
+            ctx.lineTo(toScreenX(xMax), toScreenY(0));
+            ctx.lineTo(toScreenX(xMin), toScreenY(0));
+            ctx.closePath();
+            ctx.fillStyle = hexToRgba('#10b981', 0.16 * morph);
+            ctx.fill();
+        }
+
+        // 4. Dibujar puntos de datos en el eje X
+        points.forEach((pt) => {
+            const sx = toScreenX(pt.x);
+            const sy = toScreenY(0);
+
+            // Línea vertical punteada hasta la cúspide de la campana
+            const peakY = (animStep === 1) ? 0 : rbf(pt.x, pt.x, sigma);
+            ctx.save();
+            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = pt.color;
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(sx, toScreenY(peakY));
+            ctx.stroke();
+            ctx.restore();
+
+            // Círculo del punto en el piso
+            ctx.beginPath();
+            ctx.arc(sx, sy, 7, 0, 2 * Math.PI);
+            ctx.fillStyle = pt.color;
+            ctx.fill();
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            // Etiqueta
+            ctx.fillStyle = '#f8fafc';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.fillText(pt.label, sx - 24, sy + 28);
+        });
+
+        // 5. Dibujar la Sonda Vertical de Alturas (Láser x')
+        const probeX = parseFloat(sliderProbeX.value);
+        probeXVal.textContent = probeX.toFixed(2);
+        mathProbeX.textContent = probeX.toFixed(2);
+
+        const y1 = rbf(probeX, points[0].x, sigma);
+        const y2 = rbf(probeX, points[1].x, sigma);
+        const y3 = rbf(probeX, points[2].x, sigma);
+        const sumY = y1 + y2 + y3;
+        const meanProbeY = sumY / 3;
+
+        valY1.textContent = y1.toFixed(2);
+        valY2.textContent = y2.toFixed(2);
+        valY3.textContent = y3.toFixed(2);
+        valSum.textContent = sumY.toFixed(2);
+        valMean.textContent = (meanProbeY * morph).toFixed(2);
+
+        const sprx = toScreenX(probeX);
+
+        // Línea vertical láser
+        ctx.save();
+        ctx.setLineDash([5, 4]);
+        ctx.strokeStyle = '#c084fc';
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.moveTo(sprx, toScreenY(-0.05));
+        ctx.lineTo(sprx, toScreenY(1.15));
+        ctx.stroke();
+        ctx.restore();
+
+        // Puntos de altura individual sobre la sonda
+        if (checkShowIndividual.checked && animStep >= 2) {
+            const probeHeights = [
+                { y: y1, color: '#38bdf8', label: 'y₁' },
+                { y: y2, color: '#f59e0b', label: 'y₂' },
+                { y: y3, color: '#ec4899', label: 'y₃' }
+            ];
+
+            probeHeights.forEach(ph => {
+                const spy = toScreenY(ph.y);
+                // Marcador horizontal
+                ctx.strokeStyle = ph.color;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(sprx - 7, spy);
+                ctx.lineTo(sprx + 7, spy);
+                ctx.stroke();
+
+                // Círculo
+                ctx.beginPath();
+                ctx.arc(sprx, spy, 4.5, 0, 2 * Math.PI);
+                ctx.fillStyle = ph.color;
+                ctx.fill();
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            });
+        }
+
+        // Punto de la altura promedio en la curva verde
+        if (animStep >= 2 && checkShowMean.checked) {
+            const spMeanY = toScreenY(meanProbeY * morph);
+
+            // Anillo exterior brillante
+            ctx.beginPath();
+            ctx.arc(sprx, spMeanY, 8.5, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 2.2;
+            ctx.stroke();
+
+            // Centro del objetivo
+            ctx.beginPath();
+            ctx.arc(sprx, spMeanY, 4.5, 0, 2 * Math.PI);
+            ctx.fillStyle = '#10b981';
+            ctx.fill();
+
+            // Cartelito flotante al lado del punto verde
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 1;
+            const tagX = Math.min(w - 130, sprx + 12);
+            const tagY = Math.max(15, spMeanY - 14);
+            ctx.fillRect(tagX, tagY, 120, 22);
+            ctx.strokeRect(tagX, tagY, 120, 22);
+
+            ctx.fillStyle = '#34d399';
+            ctx.font = 'bold 11px monospace';
+            ctx.fillText(`μ_k(${probeX.toFixed(1)}) = ${(meanProbeY * morph).toFixed(2)}`, tagX + 6, tagY + 15);
+        }
+    }
+
+    function hexToRgba(hex, alpha) {
+        let c;
+        if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
+            c = hex.substring(1).split('');
+            if (c.length === 3) {
+                c = [c[0], c[0], c[1], c[1], c[2], c[2]];
+            }
+            c = '0x' + c.join('');
+            return 'rgba(' + [(c >> 16) & 255, (c >> 8) & 255, c & 255].join(',') + ',' + alpha + ')';
+        }
+        return hex;
+    }
+
+    // Animación guiada paso a paso
+    function startStepByStepAnimation() {
+        if (isPlaying) return;
+        isPlaying = true;
+        playText.textContent = "Animando...";
+        playIcon.textContent = "⏳";
+
+        let startTime = performance.now();
+        const duration = 5000; // 5 segundos en total
+
+        function animate(now) {
+            const elapsed = now - startTime;
+            const progress = Math.min(1.0, elapsed / duration);
+
+            if (progress < 0.3) {
+                // Fase 1: Solo puntos
+                animStep = 1;
+                sliderMorph.value = 0;
+                checkShowIndividual.checked = false;
+                checkShowMean.checked = false;
+                animStateBadge.textContent = "Paso 1: Muestras x_i discretas";
+                animStateBadge.style.color = "#38bdf8";
+                stepExplanation.innerHTML = "<strong>Paso 1: Datos discretos</strong><br>Tenemos solo 3 números reales en el espacio original: <span class='formula-tag'>x₁=1.0</span>, <span class='formula-tag'>x₂=2.0</span> y <span class='formula-tag'>x₃=6.0</span>.";
+            } else if (progress < 0.65) {
+                // Fase 2: Aparecen las campanas
+                animStep = 2;
+                checkShowIndividual.checked = true;
+                checkShowMean.checked = false;
+                const p2 = (progress - 0.3) / 0.35;
+                sliderMorph.value = 0;
+                animStateBadge.textContent = "Paso 2: Campanas canónicas k(x_i, •)";
+                animStateBadge.style.color = "#f59e0b";
+                stepExplanation.innerHTML = "<strong>Paso 2: Mapeo canónico a funciones</strong><br>Cada número se convierte en una campana entera <span class='formula-tag'>k(x_i, •)</span> en el espacio de Hilbert $\\mathcal{H}_k$. El punto libre $(\\cdot)$ espera cualquier posición.";
+            } else {
+                // Fase 3: Emerge el promedio
+                animStep = 3;
+                checkShowIndividual.checked = true;
+                checkShowMean.checked = true;
+                const p3 = (progress - 0.65) / 0.35;
+                sliderMorph.value = Math.round(p3 * 100);
+                animStateBadge.textContent = "Paso 3: Mean Embedding μ_k(•)";
+                animStateBadge.style.color = "#10b981";
+                stepExplanation.innerHTML = "<strong>Paso 3: Emerge el Mean Embedding</strong><br>Sumamos las 3 campanas y dividimos entre 3. La curva verde resultante es <span class='formula-tag'>\\mu_k</span>: un <strong>único objeto continuo</strong> que resume toda la nube de datos.";
+            }
+
+            draw();
+
+            if (progress < 1.0) {
+                animFrameId = requestAnimationFrame(animate);
+            } else {
+                isPlaying = false;
+                playText.textContent = "Repetir Animación Paso a Paso";
+                playIcon.textContent = "↺";
+            }
+        }
+
+        animFrameId = requestAnimationFrame(animate);
+    }
+
+    btnPlay.addEventListener('click', () => {
+        if (!isPlaying) {
+            startStepByStepAnimation();
+        }
+    });
+
+    [sliderSigma, sliderMorph, checkShowIndividual, checkShowMean, sliderProbeX].forEach(el => {
+        el.addEventListener('input', () => {
+            if (isPlaying) {
+                cancelAnimationFrame(animFrameId);
+                isPlaying = false;
+                playText.textContent = "Reproducir Animación Paso a Paso";
+                playIcon.textContent = "▶";
+            }
+            animStep = 3;
+            draw();
+        });
+    });
+
+    // Soporte para arrastrar puntos interactivamente con el mouse
+    canvas.addEventListener('mousedown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = toMathX(e.clientX - rect.left);
+
+        points.forEach(pt => {
+            if (Math.abs(pt.x - mx) < 0.45) {
+                draggedPoint = pt;
+            }
+        });
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = toMathX(e.clientX - rect.left);
+        if (draggedPoint) {
+            draggedPoint.x = Math.max(xMin + 0.5, Math.min(xMax - 0.5, mx));
+            draggedPoint.label = `x = ${draggedPoint.x.toFixed(1)}`;
+        } else {
+            // Mover la sonda al pasar el mouse por encima
+            const boundedX = Math.max(-1.0, Math.min(8.0, mx));
+            sliderProbeX.value = boundedX.toFixed(2);
+        }
+        draw();
+    });
+
+    window.addEventListener('mouseup', () => {
+        draggedPoint = null;
+    });
+
+    window.addEventListener('resize', () => {
+        resizeCanvas();
+        draw();
+    });
+
+    resizeCanvas();
+    draw();
+</script>
+
+</body>
+</html>

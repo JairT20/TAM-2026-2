@@ -1,0 +1,32 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.bak
+*~
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# Editor & OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.atl/
+
+# Excluir parciales viejos y directorios legacy
+parcial_2_anterior semestre/
+parte2/
+
+# Archivos pesados de datasets (descargar por separado)
+*.gz
+data/*.gz
