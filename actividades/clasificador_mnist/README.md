@@ -2,7 +2,7 @@
 
 Actividad práctica de reconocimiento e inferencia de dígitos manuscritos utilizando visión por computadora y Deep Learning.
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://tam-2026-2-d4nq6ymhmc4vrsetgeo8dn.streamlit.app/)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://jairt20-tam-2026-2-streamlit-app-82vlb5.streamlit.app)
 
 ---
 
@@ -19,7 +19,7 @@ Actividad práctica de reconocimiento e inferencia de dígitos manuscritos utili
 
 Podés probar la aplicación desplegada en la nube sin instalar nada:
 
-👉 **[Abrir Clasificador MNIST en Streamlit Cloud](https://tam-2026-2-d4nq6ymhmc4vrsetgeo8dn.streamlit.app/)**
+👉 **[Abrir Clasificador MNIST en Streamlit Cloud](https://jairt20-tam-2026-2-streamlit-app-82vlb5.streamlit.app)**
 
 Permite subir fotos de cuadernos o capturar trazos manuscritos en vivo usando la cámara de tu celular o laptop.
 
