@@ -10,4 +10,4 @@ Repositorio general de entregas, evaluaciones y actividades prácticas del curso
   - **[`clasificador_mnist/`](actividades/clasificador_mnist/README.md)**: Clasificación de dígitos manuscritos con Deep Learning y OpenCV (documentación técnica, scripts y demo en Streamlit).
 - **`parciales/`**
   - **`parcial_1/`**: Cuaderno (`parcial1_corregido.ipynb`) y documentos de evaluación del Parcial 1.
-- **`talleres/`**: Talleres y prácticas de la materia.
+- **[`talleres/`](talleres/README.md)**: Talleres prácticos del curso (incluye enlace y documentación del Taller 1 desarrollado con Marlyn Nathalia Mora).
