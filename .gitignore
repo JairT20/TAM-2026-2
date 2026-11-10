@@ -27,12 +27,6 @@ Thumbs.db
 parcial_2_anterior semestre/
 parte2/
 
-# Parcial 1: temporalmente no publicado (en organización por el usuario)
-parciales/p_ejericios_notas/
-parciales/*.pdf
-parciales/parcial_1/*
-!parciales/parcial_1/.gitkeep
-
 # Excluir actividades en progreso / no públicas
 actividades/clasificador_basura/
 
