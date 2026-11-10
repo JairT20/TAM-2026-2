@@ -3,7 +3,8 @@ import runpy
 
 target_script = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
-    "clasificacion_mnist",
+    "actividades",
+    "clasificador_mnist",
     "app_streamlit.py"
 )
 
