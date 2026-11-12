@@ -10,7 +10,9 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mnist_model.keras")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_DENSE_PATH = os.path.join(BASE_DIR, "mnist_model.keras")
+MODEL_CONV_PATH = os.path.join(BASE_DIR, "mnist_model_conv.keras")
 
 st.set_page_config(
     page_title="MNIST Digit Classifier",
@@ -19,10 +21,10 @@ st.set_page_config(
 )
 
 @st.cache_resource
-def load_keras_model():
-    if not os.path.exists(MODEL_PATH):
-        raise FileNotFoundError(f"Model file not found at: {MODEL_PATH}")
-    return keras.saving.load_model(MODEL_PATH)
+def load_keras_model(model_path):
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Model file not found at: {model_path}")
+    return keras.saving.load_model(model_path)
 
 def preprocess_opencv_single_digit(cv_img):
     """
@@ -129,11 +131,24 @@ st.title("🔢 Clasificador de Dígito MNIST")
 st.markdown("Reconocimiento de **un único dígito** manuscrito mediante **OpenCV** y **Red Neuronal (Keras/PyTorch)**.")
 st.caption("Desarrollado en pareja por **Jair Telpiz** y **Nathalia Mora** | Teoría de Aprendizaje de Máquinas (TAM)")
 
+# Sidebar: Model Architecture Selection
+st.sidebar.header("Arquitectura del Modelo")
+model_choice = st.sidebar.selectbox(
+    "Seleccionar Red:",
+    [
+        "Convolucional (CNN - 2 Conv [32, 64], 30 épocas)",
+        "Densa (MLP - Capas Ocultas [64, 64])"
+    ],
+    index=0
+)
+is_cnn = "CNN" in model_choice
+selected_model_path = MODEL_CONV_PATH if is_cnn else MODEL_DENSE_PATH
+
 # Load model
 try:
-    model = load_keras_model()
+    model = load_keras_model(selected_model_path)
 except Exception as e:
-    st.error(f"Error al cargar el modelo: {e}")
+    st.error(f"Error al cargar el modelo ({selected_model_path}): {e}")
     st.stop()
 
 # Input mode selection
@@ -169,8 +184,14 @@ if uploaded_file is not None:
     if digit_item is None:
         st.warning("No se detectó un dígito claro en la imagen. Probá con mayor contraste o mejor iluminación.")
     else:
-        # Run inference for the single digit
-        pred_probs = model.predict(digit_item["vector"], verbose=0)[0]
+        # Run inference for the single digit according to model input requirements
+        canvas_float = digit_item["canvas"].astype(np.float32)
+        if is_cnn:
+            model_input = canvas_float.reshape(1, 28, 28, 1)
+        else:
+            model_input = canvas_float.reshape(1, 784)
+
+        pred_probs = model.predict(model_input, verbose=0)[0]
         pred_digit = int(np.argmax(pred_probs))
         conf = float(pred_probs[pred_digit]) * 100
 
@@ -190,11 +211,15 @@ if uploaded_file is not None:
         annotated_rgb = cv2.cvtColor(annotated_img, cv2.COLOR_BGR2RGB)
 
         # Main result metric
-        st.metric(
-            label="Dígito Detectado",
-            value=f"{pred_digit}",
-            delta=f"{conf:.1f}% certeza"
-        )
+        col_m1, col_m2 = st.columns([1, 2])
+        with col_m1:
+            st.metric(
+                label="Dígito Detectado",
+                value=f"{pred_digit}",
+                delta=f"{conf:.1f}% certeza"
+            )
+        with col_m2:
+            st.info(f"**Arquitectura activa:** {'Convolucional (CNN - 2 Conv [32, 64], 30 épocas)' if is_cnn else 'Densa (MLP [64, 64])'}")
 
         # Side by side visualizer
         col1, col2 = st.columns(2)
