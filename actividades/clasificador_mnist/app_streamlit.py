@@ -6,6 +6,7 @@ os.environ["KERAS_BACKEND"] = "torch"
 
 import cv2
 import keras
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -238,5 +239,74 @@ if uploaded_file is not None:
             "Probabilidad (%)": pred_probs * 100
         })
         st.bar_chart(df_probs.set_index("Dígito"))
+
+        # Inspección de Filtros y Feature Maps para la Red Convolucional
+        if is_cnn:
+            st.markdown("---")
+            st.subheader("🔬 Inspección Convolucional: Filtros y Feature Maps")
+            st.caption("Visualización de las representaciones y patrones internos aprendidos por la CNN para el dígito actual.")
+
+            with st.expander("Ver Filtros (Kernels) y Mapas de Características", expanded=True):
+                conv_layers = [l for l in model.layers if isinstance(l, keras.layers.Conv2D) or "conv" in l.name.lower()]
+
+                if conv_layers:
+                    tab_filt, tab_c1, tab_c2 = st.tabs([
+                        "Filtros Aprendidos (Kernels C1)",
+                        "Feature Maps - Capa 1 (32 mapas)",
+                        "Feature Maps - Capa 2 (64 mapas)"
+                    ])
+
+                    # 1. Filtros de la primera capa (Célula 14 de ministcodes)
+                    with tab_filt:
+                        st.markdown("**32 Filtros de 3×3 aprendidos por la primera capa (`conv1`):**")
+                        try:
+                            wc1 = conv_layers[0].get_weights()[0]  # Shape: (3, 3, 1, 32)
+                            fig_filt, axes = plt.subplots(4, 8, figsize=(8, 4))
+                            for idx, ax in enumerate(axes.flat):
+                                if idx < wc1.shape[-1]:
+                                    ax.imshow(wc1[:, :, 0, idx], cmap="viridis")
+                                ax.axis("off")
+                            fig_filt.tight_layout()
+                            st.pyplot(fig_filt)
+                            plt.close(fig_filt)
+                        except Exception as e:
+                            st.warning(f"No se pudieron visualizar los filtros: {e}")
+
+                    # 2. Feature Maps Capa 1 (Célula 17 de ministcodes)
+                    with tab_c1:
+                        try:
+                            model_conv1 = keras.Model(inputs=model.inputs, outputs=conv_layers[0].output)
+                            y_conv1 = model_conv1.predict(model_input, verbose=0)
+                            st.markdown(f"**Activaciones generadas por `{conv_layers[0].name}`:**")
+                            st.caption(f"32 mapas de características de {y_conv1.shape[1]}×{y_conv1.shape[2]} píxeles")
+                            fig_c1, axes = plt.subplots(4, 8, figsize=(10, 5))
+                            for idx, ax in enumerate(axes.flat):
+                                if idx < y_conv1.shape[-1]:
+                                    ax.imshow(y_conv1[0, :, :, idx], cmap="gray")
+                                ax.axis("off")
+                            fig_c1.tight_layout()
+                            st.pyplot(fig_c1)
+                            plt.close(fig_c1)
+                        except Exception as e:
+                            st.warning(f"No se pudieron generar los feature maps de la capa 1: {e}")
+
+                    # 3. Feature Maps Capa 2 (Célula 18 de ministcodes)
+                    if len(conv_layers) > 1:
+                        with tab_c2:
+                            try:
+                                model_conv2 = keras.Model(inputs=model.inputs, outputs=conv_layers[1].output)
+                                y_conv2 = model_conv2.predict(model_input, verbose=0)
+                                st.markdown(f"**Activaciones generadas por `{conv_layers[1].name}`:**")
+                                st.caption(f"64 mapas de características de {y_conv2.shape[1]}×{y_conv2.shape[2]} píxeles (tras Max-Pooling)")
+                                fig_c2, axes = plt.subplots(8, 8, figsize=(10, 10))
+                                for idx, ax in enumerate(axes.flat):
+                                    if idx < y_conv2.shape[-1]:
+                                        ax.imshow(y_conv2[0, :, :, idx], cmap="gray")
+                                    ax.axis("off")
+                                fig_c2.tight_layout()
+                                st.pyplot(fig_c2)
+                                plt.close(fig_c2)
+                            except Exception as e:
+                                st.warning(f"No se pudieron generar los feature maps de la capa 2: {e}")
 else:
     st.info("Subí una foto de un único dígito en tu cuaderno o capturalo con la cámara.")
