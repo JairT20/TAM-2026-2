@@ -28,7 +28,42 @@ SERIES_MODELS = {
 st.set_page_config(
     page_title="Proyecto TAM - Deep Learning & Agente RAG",
     page_icon="🧠",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Estilos visuales modernos para tarjetas, encabezados e imágenes
+st.markdown(
+    """
+    <style>
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    [data-testid="stMetric"] {
+        background-color: rgba(128, 128, 128, 0.08);
+        border: 1px solid rgba(128, 128, 128, 0.2);
+        padding: 1rem 1.2rem;
+        border-radius: 0.75rem;
+    }
+    .hero-card {
+        padding: 1.25rem 1.5rem;
+        border-radius: 0.85rem;
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(16, 185, 129, 0.08));
+        border: 1px solid rgba(59, 130, 246, 0.25);
+        margin-bottom: 1.5rem;
+    }
+    .hero-card h1 {
+        margin: 0 0 0.35rem 0;
+        font-size: 1.9rem;
+    }
+    .hero-card p {
+        margin: 0;
+        opacity: 0.9;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
 )
 
 @st.cache_resource
@@ -157,9 +192,15 @@ st.sidebar.markdown("---")
 # MÓDULO 1 & 2: CLASIFICADOR MNIST (RED DENSA Y CONVOLUCIONAL 2D)
 # ==============================================================================
 if modulo == "1 & 2. Clasificador MNIST (Densa & CNN)":
-    st.title("🔢 Clasificador de Dígito MNIST")
-    st.markdown("Reconocimiento de **un único dígito** manuscrito mediante **OpenCV** y **Red Neuronal (Keras/PyTorch)**.")
-    st.caption("Desarrollado en pareja por **Jair Telpiz** y **Nathalia Mora** | Teoría de Aprendizaje de Máquinas (TAM)")
+    st.markdown(
+        """
+        <div class="hero-card">
+            <h1>Clasificador de Dígitos MNIST</h1>
+            <p>Reconocimiento de un único dígito manuscrito mediante <b>OpenCV</b> y redes neuronales <b>MLP / CNN (Keras & PyTorch)</b>.</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     # Sidebar: Model Architecture Selection
     st.sidebar.header("Arquitectura del Modelo")
@@ -234,26 +275,39 @@ if modulo == "1 & 2. Clasificador MNIST (Densa & CNN)":
             )
             annotated_rgb = cv2.cvtColor(annotated_img, cv2.COLOR_BGR2RGB)
 
-            # Main result metric
-            col_m1, col_m2 = st.columns([1, 2])
+            # Main result metrics row
+            col_m1, col_m2, col_m3 = st.columns(3)
             with col_m1:
                 st.metric(
                     label="Dígito Detectado",
-                    value=f"{pred_digit}",
-                    delta=f"{conf:.1f}% certeza"
+                    value=f"{pred_digit}"
                 )
             with col_m2:
-                st.info(f"**Arquitectura activa:** {'Convolucional (CNN - 2 Conv [32, 64], 30 épocas)' if is_cnn else 'Densa (MLP [64, 64])'}")
+                st.metric(
+                    label="Confianza de Predicción",
+                    value=f"{conf:.1f}%"
+                )
+            with col_m3:
+                st.metric(
+                    label="Arquitectura Activa",
+                    value="CNN 2D" if is_cnn else "MLP Densa"
+                )
 
-            # Side by side visualizer
-            col1, col2 = st.columns(2)
+            st.markdown("---")
+
+            # 3-column OpenCV pipeline visualizer
+            col1, col2, col3 = st.columns([1.2, 1, 1])
             with col1:
-                st.subheader("1. Imagen Original con Detección")
+                st.subheader("1. Detección Original")
                 st.image(annotated_rgb, use_container_width=True)
 
             with col2:
-                st.subheader("2. Visión Normalizada (28x28 Keras)")
-                st.image(digit_item["canvas"], width=220, caption=f"Entrada a la red: dígito {pred_digit}")
+                st.subheader("2. Máscara OpenCV")
+                st.image(bin_img, use_container_width=True, caption="Binarización morfológica")
+
+            with col3:
+                st.subheader("3. Entrada 28×28")
+                st.image(digit_item["canvas"], width=220, caption=f"Centrado por masa (Dígito {pred_digit})")
 
             # Probability distribution bar chart
             st.subheader("Distribución de Probabilidades (0 al 9)")

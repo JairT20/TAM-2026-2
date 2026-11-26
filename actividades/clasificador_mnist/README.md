@@ -1,170 +1,154 @@
 # Proyecto TAM: Deep Learning, Series de Tiempo y Agente RAG
 
-Aplicación integral de **Teoría de Aprendizaje de Máquinas (TAM)** que reúne 5 módulos interactivos en Streamlit: clasificación de dígitos manuscritos con redes densas y convolucionales, regresión no lineal, pronóstico de series temporales complejas y un Agente RAG especializado en circuitos y dispositivos electrónicos.
+Aplicacion web desarrollada para **Teoria de Aprendizaje de Maquinas (TAM)** que integra cinco modulos de inteligencia artificial: clasificacion de digitos manuscritos con redes densas y convolucionales, regresion no lineal, pronostico de series temporales complejas y un agente RAG especializado en circuitos y dispositivos electronicos.
 
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://jairt20-tam-2026-2-streamlit-app-82vlb5.streamlit.app)
 
 ---
 
-## 👥 Integrantes
+## Integrantes
 
 - **Jair Telpiz**
 - **Nathalia Mora**
 
-*Materia: Teoría de Aprendizaje de Máquinas (TAM)*
+Materia: Teoria de Aprendizaje de Maquinas (TAM)
+
+## Demo en Vivo
+
+Aplicacion desplegada en Streamlit Cloud:
+
+- [Abrir Proyecto TAM en Streamlit Cloud](https://jairt20-tam-2026-2-streamlit-app-82vlb5.streamlit.app)
 
 ---
 
-## 🌐 Demo en Vivo (Web)
+## 1. Clasificacion MNIST: Red Densa (MLP)
 
-Podés probar la aplicación desplegada en la nube sin instalar nada:
+### 1.a. Pipeline de Preprocesamiento con OpenCV
 
-👉 **[Abrir Clasificador MNIST en Streamlit Cloud](https://jairt20-tam-2026-2-streamlit-app-82vlb5.streamlit.app)**
+Antes de realizar inferencia en cualquiera de las redes de clasificacion, la imagen capturada pasa por `preprocess_opencv_single_digit`:
 
-Permite subir fotos de cuadernos o capturar trazos manuscritos en vivo usando la cámara de tu celular o laptop.
+1. **Deteccion de iluminacion y fondo:** Analiza los pixeles perimetrales para distinguir fondos oscuros de papel con sombras o cuadriculas.
+2. **Binarizacion morfologica adaptativa:** Elimina el ruido de hojas de cuaderno y resalta el trazo del digito.
+3. **Segmentacion por componentes conectados:** Aisla el trazo principal y fusiona trazos cercanos pertenecientes al mismo digito (como barras transversales en un 4 o un 7).
+4. **Normalizacion y centrado por momentos:** Escala el digito conservando la relacion de aspecto a 20x20 pixeles y lo centra por centro de masa en un lienzo de 28x28.
 
----
+### 1.b. Arquitectura y Entrenamiento
 
-## 👁️ 1. Pipeline de Preprocesamiento con OpenCV
+El Perceptron Multicapa (MLP) aplana la imagen en un vector unidimensional sin conservar la topologia espacial 2D.
 
-Antes de pasar la imagen a cualquiera de las redes, la captura cruda pasa por la función `preprocess_opencv_single_digit`:
+- **Archivo de pesos:** `mnist_model.keras`
+- **Tensor de entrada:** `(1, 784)`
 
-1. **Detección de iluminación y fondo:** Analiza los píxeles perimetrales para distinguir fondos oscuros de papel con sombras o cuadrículas.
-2. **Binarización morfológica adaptativa:** Elimina el ruido de las hojas de cuaderno y resalta el trazo del lápiz o lapicero.
-3. **Segmentación por componentes conectados:** Aísla el trazo principal del dígito y fusiona trazos desconectados pertenecientes al mismo número (como las barras transversales en un 4 o un 7).
-4. **Normalización y Centrado por Momentos (Centro de Masa):** Escala el dígito conservando su relación de aspecto a una caja de $20 \times 20$ píxeles y lo posiciona exactamente en el centro de masa de un lienzo negro de $28 \times 28$, emulando el formato estándar de MNIST.
-
----
-
-## 🧠 2. Arquitectura de la Red Densa (MLP)
-
-El modelo **Perceptrón Multicapa (MLP)** procesa la imagen aplanándola en un vector unidimensional sin conservar la topología espacial bidimensional.
-
-* **Archivo de pesos:** `mnist_model.keras` (~673 KB)
-* **Tensor de entrada:** Vector aplanado `(1, 784)` con valores de píxeles en rango $[0, 255]$.
-
-### Estructura capa por capa:
-| Capa | Tipo | Configuración / Unidades | Función de Activación | Salida / Forma |
+| Capa | Tipo | Configuracion | Activacion | Salida |
 | :--- | :--- | :--- | :--- | :--- |
-| **Entrada** | `Input` | 784 valores escalares | — | `(None, 784)` |
-| **Oculta 1** | `Dense` | 64 neuronas | ReLU | `(None, 64)` |
-| **Oculta 2** | `Dense` | 64 neuronas | ReLU | `(None, 64)` |
-| **Salida** | `Dense` | 10 neuronas (dígitos 0 al 9) | Softmax | `(None, 10)` |
-
-### Características y Limitaciones:
-- **Pérdida de coherencia espacial:** Al aplanar la matriz de $28 \times 28$ a un vector de 784 elementos, la red pierde la noción de adyacencia vertical y horizontal entre píxeles.
-- **Sensibilidad a traslaciones:** Si el dígito está ligeramente desplazado del centro geométrico, las neuronas densas no activan los mismos pesos, degradando la precisión.
+| Entrada | `Input` | 784 valores escalares | — | `(None, 784)` |
+| Oculta 1 | `Dense` | 128 / 64 neuronas | ReLU | `(None, 64)` |
+| Oculta 2 | `Dense` | 64 neuronas | ReLU | `(None, 64)` |
+| Salida | `Dense` | 10 neuronas (0 al 9) | Softmax | `(None, 10)` |
 
 ---
 
-## 🔬 3. Arquitectura de la Red Convolucional (CNN)
+## 2. Clasificacion MNIST: Red Convolucional (CNN 2D)
 
-La **Red Convolucional** procesa la imagen conservando explícitamente su estructura espacial 2D, aplicando filtros deslizantes (*kernels*) que aprenden jerarquías de patrones visuales.
+### 2.a. Arquitectura Capa por Capa
 
-* **Archivo de pesos:** `mnist_model_conv.keras` (~637 KB)
-* **Tensor de entrada:** Tensor tridimensional espacial `(1, 28, 28, 1)`.
+La Red Convolucional procesa la imagen conservando su estructura espacial 2D mediante filtros deslizantes (*kernels*) y submuestreo.
 
-### Estructura capa por capa:
-| Capa | Tipo | Configuración | Activación | Dimensión de Salida |
+- **Archivo de pesos:** `mnist_model_conv.keras`
+- **Tensor de entrada:** `(1, 28, 28, 1)`
+- **Entrenamiento:** Optimizador Adam, perdida `sparse_categorical_crossentropy`, 30 epocas.
+
+| Capa | Tipo | Configuracion | Activacion | Salida |
 | :--- | :--- | :--- | :--- | :--- |
-| **`input`** | `InputLayer` | Entrada monocromática | — | `(None, 28, 28, 1)` |
-| **`conv1`** | `Conv2D` | 32 filtros, kernel $3 \times 3$, `padding="same"` | ReLU | `(None, 28, 28, 32)` |
-| **`maxP1`** | `MaxPooling2D` | Ventana $2 \times 2$, stride 2 | — | `(None, 14, 14, 32)` |
-| **`conv2`** | `Conv2D` | 64 filtros, kernel $3 \times 3$, `padding="same"` | ReLU | `(None, 14, 14, 64)` |
-| **`maxP2`** | `MaxPooling2D` | Ventana $2 \times 2$, stride 2 | — | `(None, 7, 7, 64)` |
-| **`Flatten`** | `Flatten` | Aplanado de mapas comprimidos | — | `(None, 3136)` |
-| **`Densa`** | `Dense` | 10 neuronas de clasificación | Softmax | `(None, 10)` |
+| `input` | `InputLayer` | Entrada monocromatica | — | `(None, 28, 28, 1)` |
+| `conv1` | `Conv2D` | 32 filtros, kernel 3x3, `padding="same"` | ReLU | `(None, 28, 28, 32)` |
+| `maxP1` | `MaxPooling2D` | Ventana 2x2, stride 2 | — | `(None, 14, 14, 32)` |
+| `conv2` | `Conv2D` | 64 filtros, kernel 3x3, `padding="same"` | ReLU | `(None, 14, 14, 64)` |
+| `maxP2` | `MaxPooling2D` | Ventana 2x2, stride 2 | — | `(None, 7, 7, 64)` |
+| `Flatten` | `Flatten` | Aplanado de mapas | — | `(None, 3136)` |
+| `Densa` | `Dense` | 10 neuronas de clasificacion | Softmax | `(None, 10)` |
 
-### Entrenamiento:
-- **Función de pérdida:** Sparse Categorical Cross-Entropy.
-- **Optimizador:** Adam.
-- **Épocas:** 30 épocas sobre el conjunto de entrenamiento de MNIST.
+### 2.b. Inspeccion de Filtros y Feature Maps
 
-### Inspección de Filtros y Feature Maps en la App:
-1. **Filtros (Kernels) de Capa 1:** 32 matrices de $3 \times 3$ aprendidas durante el entrenamiento que detectan bordes, curvas y orientaciones básicas.
-2. **Feature Maps (Capa 1 - `conv1`):** 32 representaciones de $28 \times 28$ píxeles que muestran dónde y con qué intensidad reaccionó la primera capa convolucional ante el trazo del dígito.
-3. **Feature Maps (Capa 2 - `conv2`):** 64 representaciones de $14 \times 14$ píxeles obtenidas tras el primer Max-Pooling, enfocadas en características de mayor nivel y combinaciones de trazos.
+La aplicacion incluye pestanas dedicadas para visualizar:
+1. **Filtros de Capa 1:** 32 matrices de 3x3 aprendidas para detectar bordes y curvaturas.
+2. **Feature Maps (`conv1`):** 32 mapas de 28x28 pixeles mostrando la activacion inicial.
+3. **Feature Maps (`conv2`):** 64 mapas de 14x14 pixeles obtenidos tras el primer Max-Pooling.
 
----
-
-## 📊 4. Comparativa Técnica: MLP vs. CNN
+### 2.c. Comparativa Tecnica: MLP vs. CNN
 
 | Criterio | Red Neuronal Densa (MLP) | Red Neuronal Convolucional (CNN) |
 | :--- | :--- | :--- |
-| **Entrada del modelo** | Vector aplanado `(1, 784)` | Tensor espacial `(1, 28, 28, 1)` |
-| **Manejo de la geometría** | Ignora relaciones espaciales 2D | Preserva la localidad espacial mediante convoluciones |
-| **Invariancia a traslación** | Muy baja (depende estrictamente del centrado) | Alta (gracias al submuestreo de `MaxPooling2D`) |
-| **Conexiones hacia capa densa** | 64 entradas por neurona intermedia | $7 \times 7 \times 64 = 3,136$ entradas en `Flatten` |
-| **Tamaño del archivo `.keras`** | ~673 KB | ~637 KB |
-| **Capacidad de interpretabilidad** | Caja negra (pesos matriciales densos) | Alta: inspección directa de filtros y mapas de activación |
+| Entrada del modelo | Vector aplanado `(1, 784)` | Tensor espacial `(1, 28, 28, 1)` |
+| Manejo de geometria | Ignora relaciones espaciales 2D | Preserva localidad espacial mediante convoluciones |
+| Invariancia a traslacion | Baja (depende del centrado) | Alta (gracias a `MaxPooling2D`) |
+| Interpretabilidad | Caja negra (pesos matriciales) | Alta (inspeccion de filtros y feature maps) |
 
 ---
 
-## 📈 5. Regresión No Lineal: Aproximación de Función Coseno
+## 3. Regresion No Lineal: Funcion Coseno
 
-Aproximación continua de la señal $y = \cos(2\pi f x)$ ($f=2$) mediante una red neuronal profunda con activaciones mixtas (`swish`, `relu`, `tanh`) y capa de salida lineal.
+### 3.a. Arquitectura y Entrenamiento
 
-* **Archivo de pesos:** `modelo_coseno_regresion.keras` (~109 KB)
-* **Entrenamiento:** 1000 épocas, optimizador Adam (`lr=0.01`), función de pérdida `mse` y métrica `mae`.
-* **En Streamlit:** Slider interactivo para evaluar cualquier valor $x \in [-2, 2]$, comparando el valor real contra la predicción puntual y la curva completa.
+Aproximacion continua de la funcion $y = \cos(2\pi f x)$ ($f = 2$) mediante una red neuronal profunda con activaciones mixtas (`swish`, `relu`, `tanh`) y salida lineal.
 
----
+- **Archivo de pesos:** `modelo_coseno_regresion.keras`
+- **Entrenamiento:** 1000 epocas, optimizador Adam (`lr=0.01`), funcion de perdida `mse` y metrica `mae`.
 
-## 🌊 6. Series de Tiempo Complejas (Tendencia + Estacionalidad + Ruido)
+### 3.b. Evaluacion en Streamlit
 
-Pronóstico multi-paso ($p = 200$ puntos a futuro) a partir de una ventana de $w = 1000$ puntos pasados sobre una señal sintética realista con tendencia lineal, dos componentes estacionales y ruido gaussiano.
-
-### Modelos Comparados:
-* **DNN** (`dnn_compleja.keras`): Red densa de 128 → 64 → 200 neuronas.
-* **CNN 1D** (`cnn1d_compleja.keras`): Convoluciones temporales 1D (`Conv1D` + `MaxPooling1D`).
-* **Simple RNN** (`rnn_compleja.keras`): Capa recurrente simple de 64 unidades.
-* **LSTM** (`lstm_compleja.keras`): Red de memoria a corto y largo plazo (64 unidades).
-* **GRU** (`gru_compleja.keras`): Unidad recurrente cerrada (64 unidades).
-
-En Streamlit se puede variar la semilla del ruido, elegir ventanas aleatorias y visualizar en tiempo real la tabla comparativa de **MSE** y **MAE** entre todos los modelos.
+Permite evaluar cualquier valor $x \in [-2, 2]$ mediante un control deslizante interactivo, mostrando el valor real, el valor predicho, el error absoluto y la grafica completa de ajuste.
 
 ---
 
-## ⚡ 7. Agente RAG: Circuitos y Dispositivos Electrónicos
+## 4. Series de Tiempo Complejas
 
-Asistente conversacional especializado construido con **LangChain**, **ChromaDB** y **Google Gemini (`gemini-3.5-flash-lite`)** sobre el documento `Manual_Maestro_Circuitos_y_Dispositivos.pdf`.
+### 4.a. Senal Sintetica y Ventaneo Temporal
 
-* **Restricción estricta de dominio:** Utiliza recuperación vectorial (*embeddings* `models/gemini-embedding-001`) y un *System Prompt* blindado para responder **únicamente** sobre leyes eléctricas, análisis nodal/mallas, Thévenin/Norton, circuitos RC/RL/RLC, diodos y transistores, citando las páginas consultadas y rechazando temas externos.
-* **Configuración de API Key:** Lee `GEMINI_API_KEY` automáticamente desde `st.secrets`, variables de entorno o mediante campo seguro en la barra lateral.
+Se genera una serie temporal con tendencia lineal, dos componentes estacionales y ruido gaussiano normalizado. Mediante ventaneo deslizante ($w = 1000$ pasos de entrada), los modelos predicen los siguientes $p = 200$ pasos a futuro.
 
----
+### 4.b. Modelos Comparados
 
-## 💻 8. Interfaz en Streamlit
+- **DNN** (`dnn_compleja.keras`): Red densa `128 -> 64 -> 200`.
+- **CNN 1D** (`cnn1d_compleja.keras`): Convoluciones temporales 1D (`Conv1D` + `MaxPooling1D`).
+- **Simple RNN** (`rnn_compleja.keras`): Capa recurrente simple de 64 unidades.
+- **LSTM** (`lstm_compleja.keras`): Red de memoria a corto y largo plazo (64 unidades).
+- **GRU** (`gru_compleja.keras`): Unidad recurrente cerrada (64 unidades).
 
-La interfaz web en [app_streamlit.py](app_streamlit.py) organiza los 5 módulos desde un menú de navegación lateral:
-1. **Clasificador MNIST (Densa & CNN):** Selector de modelo, carga/cámara con OpenCV, barras de probabilidad, filtros aprendidos y *feature maps*.
-2. **Regresión No Lineal (Coseno):** Evaluación interactiva y gráfica real vs. predicha.
-3. **Series de Tiempo Complejas:** Selector de ventana aleatoria, filtros de arquitectura y tabla comparativa de error.
-4. **Agente RAG (Circuitos y Dispositivos):** Chat interactivo con citas por página del manual.
-
----
-
-## 📁 9. Archivos de la Actividad
-
-- `app_streamlit.py`: Aplicación web principal en Streamlit con los 5 módulos.
-- `ministcode.ipynb`: Cuaderno Jupyter organizado en 5 secciones para el entrenamiento y prueba en Google Colab.
-- `Manual_Maestro_Circuitos_y_Dispositivos.pdf`: Documento técnico base para el Agente RAG.
-- `mnist_model.keras` y `mnist_model_conv.keras`: Pesos de clasificación MNIST (Densa y Convolucional).
-- `modelo_coseno_regresion.keras`: Pesos de la regresión no lineal (1000 épocas).
-- `dnn_compleja.keras`, `cnn1d_compleja.keras`, `rnn_compleja.keras`, `lstm_compleja.keras`, `gru_compleja.keras`: Pesos de los modelos de series de tiempo.
-- `probar_digito.py`: Interfaz de escritorio en Tkinter para MNIST.
+En Streamlit se pueden variar la semilla de ruido y la ventana temporal para comparar en vivo las curvas de prediccion y la tabla de errores **MSE** y **MAE**.
 
 ---
 
-## 🚀 10. Ejecución Local y Despliegue
+## 5. Agente RAG: Circuitos y Dispositivos Electronicos
+
+### 5.a. Recuperacion Vectorial y Restriccion de Dominio
+
+Asistente conversacional construido con **LangChain**, **ChromaDB** y **Google Gemini (`gemini-3.5-flash-lite`)** sobre el documento `Manual_Maestro_Circuitos_y_Dispositivos.pdf`.
+
+- Utiliza embeddings `models/gemini-embedding-001` y un *System Prompt* estricto para responder unicamente sobre leyes electricas, analisis nodal/mallas, Thevenin/Norton, circuitos RC/RL/RLC, diodos y transistores, citando las paginas consultadas y rechazando consultas externas.
+
+### 5.b. Configuracion de API Key
+
+La aplicacion obtiene `GEMINI_API_KEY` automaticamente desde `st.secrets`, variables de entorno o mediante campo seguro en la barra lateral.
+
+---
+
+## Archivos del Proyecto
+
+- `app_streamlit.py`: Aplicacion web en Streamlit con los 5 modulos.
+- `ministcode.ipynb`: Cuaderno Jupyter organizado en 5 secciones para entrenamiento en Colab.
+- `Manual_Maestro_Circuitos_y_Dispositivos.pdf`: Documento base del Agente RAG.
+- `mnist_model.keras` y `mnist_model_conv.keras`: Modelos de clasificacion MNIST.
+- `modelo_coseno_regresion.keras`: Modelo de regresion no lineal (1000 epocas).
+- `dnn_compleja.keras`, `cnn1d_compleja.keras`, `rnn_compleja.keras`, `lstm_compleja.keras`, `gru_compleja.keras`: Modelos de series de tiempo.
+- `probar_digito.py`: Aplicacion de escritorio en Tkinter para MNIST.
+
+## Ejecucion Local
 
 ```bash
-# 1. Instalar dependencias (incluyendo LangChain, Chroma y Google GenAI)
-pip install streamlit keras torch opencv-python-headless numpy pandas pillow matplotlib langchain langchain-community langchain-core langchain-chroma langchain-google-genai chromadb pypdf
+# 1. Instalar dependencias
+pip install -r ../../requirements.txt
 
-# 2. Configurar tu clave de Google AI Studio (opcional por entorno o en Streamlit Secrets)
-export GEMINI_API_KEY="tu_api_key"
-
-# 3. Ejecutar la aplicación web
+# 2. Ejecutar la aplicacion web
 streamlit run app_streamlit.py
 ```
