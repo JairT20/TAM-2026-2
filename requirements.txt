@@ -6,3 +6,10 @@ numpy
 pandas
 pillow
 matplotlib
+langchain-core
+langchain-community
+langchain-chroma
+langchain-google-genai
+langchain-text-splitters
+chromadb
+pypdf

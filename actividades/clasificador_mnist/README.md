@@ -1,6 +1,6 @@
-# Clasificación de Dígitos MNIST: Red Densa (MLP) vs. Red Convolucional (CNN) con OpenCV
+# Proyecto TAM: Deep Learning, Series de Tiempo y Agente RAG
 
-Actividad práctica de reconocimiento e inferencia de dígitos manuscritos utilizando visión por computadora y Deep Learning, comparando el comportamiento, la representación interna y la eficiencia entre arquitecturas densas y convolucionales.
+Aplicación integral de **Teoría de Aprendizaje de Máquinas (TAM)** que reúne 5 módulos interactivos en Streamlit: clasificación de dígitos manuscritos con redes densas y convolucionales, regresión no lineal, pronóstico de series temporales complejas y un Agente RAG especializado en circuitos y dispositivos electrónicos.
 
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://jairt20-tam-2026-2-streamlit-app-82vlb5.streamlit.app)
 
@@ -100,35 +100,71 @@ La **Red Convolucional** procesa la imagen conservando explícitamente su estruc
 
 ---
 
-## 💻 5. Interfaz en Streamlit
+## 📈 5. Regresión No Lineal: Aproximación de Función Coseno
 
-La interfaz web en [app_streamlit.py](app_streamlit.py) cuenta con:
-1. **Selector dinámico de modelo:** Alterna entre MLP y CNN para comparar predicciones y nivel de certeza sobre la misma imagen.
-2. **Módulo interactivo de inspección CNN:** Pestañas dedicadas para visualizar los filtros aprendidos y los mapas de características resultantes en tiempo real.
-3. **Distribución de probabilidades:** Gráfico de barras interactivo con los porcentajes de certeza para las 10 clases (dígitos 0 al 9).
-4. **Múltiples métodos de entrada:** Admite subida de archivos de imagen (JPG, PNG, WEBP) y captura en vivo mediante la cámara web.
+Aproximación continua de la señal $y = \cos(2\pi f x)$ ($f=2$) mediante una red neuronal profunda con activaciones mixtas (`swish`, `relu`, `tanh`) y capa de salida lineal.
 
----
-
-## 📁 6. Archivos de la Actividad
-
-- `app_streamlit.py`: Aplicación web interactiva en Streamlit.
-- `probar_digito.py`: Interfaz de escritorio en Tkinter.
-- `ministcodes.ipynb`: Cuaderno Jupyter con el diseño, entrenamiento y extracción de activaciones de los modelos.
-- `mnist_model_conv.keras`: Pesos de la Red Convolucional (CNN con MaxPooling).
-- `mnist_model.keras`: Pesos de la Red Densa (MLP).
+* **Archivo de pesos:** `modelo_coseno_regresion.keras` (~109 KB)
+* **Entrenamiento:** 1000 épocas, optimizador Adam (`lr=0.01`), función de pérdida `mse` y métrica `mae`.
+* **En Streamlit:** Slider interactivo para evaluar cualquier valor $x \in [-2, 2]$, comparando el valor real contra la predicción puntual y la curva completa.
 
 ---
 
-## 🚀 7. Ejecución Local
+## 🌊 6. Series de Tiempo Complejas (Tendencia + Estacionalidad + Ruido)
+
+Pronóstico multi-paso ($p = 200$ puntos a futuro) a partir de una ventana de $w = 1000$ puntos pasados sobre una señal sintética realista con tendencia lineal, dos componentes estacionales y ruido gaussiano.
+
+### Modelos Comparados:
+* **DNN** (`dnn_compleja.keras`): Red densa de 128 → 64 → 200 neuronas.
+* **CNN 1D** (`cnn1d_compleja.keras`): Convoluciones temporales 1D (`Conv1D` + `MaxPooling1D`).
+* **Simple RNN** (`rnn_compleja.keras`): Capa recurrente simple de 64 unidades.
+* **LSTM** (`lstm_compleja.keras`): Red de memoria a corto y largo plazo (64 unidades).
+* **GRU** (`gru_compleja.keras`): Unidad recurrente cerrada (64 unidades).
+
+En Streamlit se puede variar la semilla del ruido, elegir ventanas aleatorias y visualizar en tiempo real la tabla comparativa de **MSE** y **MAE** entre todos los modelos.
+
+---
+
+## ⚡ 7. Agente RAG: Circuitos y Dispositivos Electrónicos
+
+Asistente conversacional especializado construido con **LangChain**, **ChromaDB** y **Google Gemini (`gemini-3.5-flash-lite`)** sobre el documento `Manual_Maestro_Circuitos_y_Dispositivos.pdf`.
+
+* **Restricción estricta de dominio:** Utiliza recuperación vectorial (*embeddings* `models/gemini-embedding-001`) y un *System Prompt* blindado para responder **únicamente** sobre leyes eléctricas, análisis nodal/mallas, Thévenin/Norton, circuitos RC/RL/RLC, diodos y transistores, citando las páginas consultadas y rechazando temas externos.
+* **Configuración de API Key:** Lee `GEMINI_API_KEY` automáticamente desde `st.secrets`, variables de entorno o mediante campo seguro en la barra lateral.
+
+---
+
+## 💻 8. Interfaz en Streamlit
+
+La interfaz web en [app_streamlit.py](app_streamlit.py) organiza los 5 módulos desde un menú de navegación lateral:
+1. **Clasificador MNIST (Densa & CNN):** Selector de modelo, carga/cámara con OpenCV, barras de probabilidad, filtros aprendidos y *feature maps*.
+2. **Regresión No Lineal (Coseno):** Evaluación interactiva y gráfica real vs. predicha.
+3. **Series de Tiempo Complejas:** Selector de ventana aleatoria, filtros de arquitectura y tabla comparativa de error.
+4. **Agente RAG (Circuitos y Dispositivos):** Chat interactivo con citas por página del manual.
+
+---
+
+## 📁 9. Archivos de la Actividad
+
+- `app_streamlit.py`: Aplicación web principal en Streamlit con los 5 módulos.
+- `ministcode.ipynb`: Cuaderno Jupyter organizado en 5 secciones para el entrenamiento y prueba en Google Colab.
+- `Manual_Maestro_Circuitos_y_Dispositivos.pdf`: Documento técnico base para el Agente RAG.
+- `mnist_model.keras` y `mnist_model_conv.keras`: Pesos de clasificación MNIST (Densa y Convolucional).
+- `modelo_coseno_regresion.keras`: Pesos de la regresión no lineal (1000 épocas).
+- `dnn_compleja.keras`, `cnn1d_compleja.keras`, `rnn_compleja.keras`, `lstm_compleja.keras`, `gru_compleja.keras`: Pesos de los modelos de series de tiempo.
+- `probar_digito.py`: Interfaz de escritorio en Tkinter para MNIST.
+
+---
+
+## 🚀 10. Ejecución Local y Despliegue
 
 ```bash
-# 1. Instalar dependencias
-pip install -r ../../requirements.txt
+# 1. Instalar dependencias (incluyendo LangChain, Chroma y Google GenAI)
+pip install streamlit keras torch opencv-python-headless numpy pandas pillow matplotlib langchain langchain-community langchain-core langchain-chroma langchain-google-genai chromadb pypdf
 
-# 2. Ejecutar la aplicación web
+# 2. Configurar tu clave de Google AI Studio (opcional por entorno o en Streamlit Secrets)
+export GEMINI_API_KEY="tu_api_key"
+
+# 3. Ejecutar la aplicación web
 streamlit run app_streamlit.py
-
-# 3. O ejecutar la aplicación de escritorio
-python probar_digito.py
 ```
